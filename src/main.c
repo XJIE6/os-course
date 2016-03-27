@@ -64,6 +64,7 @@ void set_mmap(){
 	while (cur < mmap_length) {
 		struct elem el = *(struct elem*)(uint64_t)(mmap_first + cur + 4);
 		cur += *(uint32_t *)(uint64_t) (mmap_first + cur);
+        cur += 4;
 		if (el.first < kernel.first && last(el) > last(kernel)) {
 			mmap[mmap_size] = el;
 			mmap[mmap_size].size = kernel.first - el.first;
