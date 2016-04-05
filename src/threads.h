@@ -32,6 +32,6 @@ void start(struct thread_t* thread);
 void kill(struct thread_t* thread);
 void join(struct thread_t* thread, void** result);
 void yield();
-struct thread_t* thread_get_current();
+struct thread_t* get();
 
 #endif

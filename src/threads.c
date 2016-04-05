@@ -49,7 +49,7 @@ struct thread_t* thread(void* (*func)(void *), void *arg) {
 	return thread;
 }
 
-struct thread_t* get_current() {
+struct thread_t* get() {
 	return cur;
 }
 
