@@ -1,138 +1,83 @@
-#include "uart.h"
-#include "pit.h"
-#include "pic.h"
-#include "idt.h"
+#include "kmem_cache.h"
 #include "interrupt.h"
+#include "memory.h"
+#include "serial.h"
+#include "paging.h"
+#include "stdio.h"
+#include "misc.h"
+#include "time.h"
+#include "threads.h"
 #include <stddef.h>
 
-void printl(uint64_t a) {
-	uint64_t b = 0;
-	uint32_t n = 0;
-	while (a > 0) {
-		b *= 10;
-		b += a % 10;
-		a /= 10;
-		n++;
-	}
-	if (b == 0) {
-		putc('0');
-	}
-	while (b > 0) {
-		putc(b % 10 + '0');
-		b /= 10;
-		n--;
-	}
-	for (uint32_t i = 0; i < n; ++i) {
-		putc('0');
-	}
-}
+uint32_t b = 1;
+uint32_t c = 0;
+struct lock_t* l;
 
-void print(const char* s) {
-	while (*s != 0) {
-		putc(*s++);
+void* foo(void * x) {
+	int param = *((int *) x);
+	while (c == 0) {};
+	lock(l);
+	for (int i = 0; i < param; ++i) {
+		b += 1;
+		barrier();
 	}
-}
-
-struct elem {
-	uint64_t first;
-	uint64_t size;
-	uint32_t type;
-};
-
-uint64_t last(struct elem e) {
-	return e.first + e.size;
-}
-
-
-extern uint32_t mboot_info;
-extern char text_phys_begin[];
-extern char bss_phys_end[];
-
-uint32_t mmap_size = 0;
-struct elem mmap[100];
-
-void set_mmap(){
-	
-	struct elem kernel;
-	kernel.first = (uint64_t) text_phys_begin;
-	kernel.size = (uint64_t) bss_phys_end - (uint64_t) text_phys_begin;
-	kernel.type = 0;
-	uint32_t mmap_length = *(uint32_t *) (uint64_t) (mboot_info + 44);
-	uint32_t mmap_first = *(uint32_t *) (uint64_t) (mboot_info + 48);
-	uint32_t cur = 0;
-	
-	while (cur < mmap_length) {
-		struct elem el = *(struct elem*)(uint64_t)(mmap_first + cur + 4);
-		cur += *(uint32_t *)(uint64_t) (mmap_first + cur);
-        cur += 4;
-		if (el.first < kernel.first && last(el) > last(kernel)) {
-			mmap[mmap_size] = el;
-			mmap[mmap_size].size = kernel.first - el.first;
-			++mmap_size;
-			mmap[mmap_size] = kernel;
-			++mmap_size;
-			mmap[mmap_size] = el;
-			mmap[mmap_size].first = last(kernel);
-			mmap[mmap_size].size = last(el) - last(kernel);
-		}
-		else if (el.first < kernel.first && last(el) >= kernel.first) {
-			el.size = kernel.first - el.first;
-			mmap[mmap_size] = el;
-			++mmap_size;
-			mmap[mmap_size] = kernel;
-		}
-		else if (el.first <= last(kernel) && last(el) > last(kernel)) {
-			el.size -= last(kernel) - el.first;
-			el.first = last(kernel);
-			mmap[mmap_size] = el;
-		}
-		else if (el.first >= kernel.first && last(el) <= last(kernel)) {
-			continue;
-		}
-		else {
-			mmap[mmap_size] = el;
-		}
-		++mmap_size;
+	c = 2;
+	unlock(l);
+	while (c == 2) {};
+	lock(l);
+	for (int i = 0; i < param; ++i) {
+		b += 1;
+		barrier();
 	}
-}
+	c = 4;
+	unlock(l);
+	return x;
+} 
 
-void print_mmap() {
-	for (uint32_t i = 0; i < mmap_size; ++i) {
-		printl(mmap[i].first);
-		print (" ");
-		printl(last(mmap[i]));
-		print (" ");
-		print(mmap[i].type == 1 ? "Available" : mmap[i].type == 0 ? "Kernel" : "Reserved");
-		print ("\n");
-	}
-}
+void* bar(void * y) {
+	int param = *((int *) y);
+	lock(l);
+	b *= param;
+	c = 1;
+	unlock(l);
+	while (c == 1) {};
+	lock(l);
+	b *= 1 + param;
+	c = 3;
+	unlock(l);
+	while (c == 3) {};
+	lock(l);
+	b *= 2 + param;
+	unlock(l);
+	return y;
+} 
 
-void repeat_me() {
-	int n = 10000007;
-	int f = 0;
-	for (int i = 2; i < n; ++i) {
-		if (n % i == 0) {
-			f = i;
-		}
-	}
-	if (f) {
-		print("not prime\n");
-	}
-	else {
-		print("prime\n");
-	}
-	//eoi();
+void test() {
+	int a = 123456;
+	int aa = 2;
+	struct thread_t* t1 = thread(&foo, &a);
+	struct thread_t* t2 = thread(&bar, &aa);
+	start(t1);
+	start(t2);
+	void * res1, *res2;
+	join(t1, &res1);
+	join(t2, &res2);
+	kill(t1);
+	kill(t2);
+	printf("%d == 1975320", b);
 }
 
 void main(void) {
-	init_uart();
-	init_pic();
-	init_idt();
-	init_pit();
-	sti();
-	//set_idt_func(0x20, (uint64_t)&run_repeat_me);
-	set_mmap();
-	print_mmap();
+	setup_serial();
+	setup_misc();
+	setup_ints();
+	setup_memory();
+	setup_buddy();
+	setup_paging();
+	setup_alloc();
+	setup_time();
 
-	while (1); 
+	init();
+	test();
+	while(true);
 }
