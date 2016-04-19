@@ -31,6 +31,5 @@ void close(struct file_t* file);
 uint32_t read(struct file_t* file, uint32_t offset, uint32_t size, char* buffer);
 void write(struct file_t* file, uint32_t offset, uint32_t size, char* buffer);
 void mkdir(char* name);
-struct file_t readdir(char* name);
 
 #endif
