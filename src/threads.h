@@ -25,7 +25,7 @@ struct thread_t {
 	struct list_head node;
 };
 
-void init();
+void thread_init();
 void set_general(struct thread_t* thread);
 struct thread_t* thread(void* (*func)(void *), void *arg);
 void start(struct thread_t* thread);

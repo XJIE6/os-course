@@ -10,7 +10,7 @@ struct list_head dead;
 static struct thread_t* volatile cur = NULL;
 static struct thread_t* volatile general = NULL;
 
-void init() {
+void thread_init() {
 	start_atomic();
 
 	list_init(&busy);
